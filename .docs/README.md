@@ -1,6 +1,6 @@
 # Documentation
 
-* [What is cream?](./what-is-cream)
+* [What is cream?](./what-is-cream.md)
 * [Quick guide](./quick.md)
 * [How to send static (HTML) files?](./worky.md)
 * API
