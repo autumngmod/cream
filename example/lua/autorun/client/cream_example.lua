@@ -1,0 +1,1 @@
+cream:new("example")

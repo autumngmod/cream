@@ -1,0 +1,14 @@
+:root, body {
+  /* the background must be transparent so that the game can be seen */
+  background: transparent;
+  margin: 0;
+  /* just me */
+  font-family: "Zed Mono";
+}
+
+.block {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
