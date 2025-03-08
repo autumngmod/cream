@@ -25,7 +25,7 @@ lib enable autumngmod/cream@0.1.0
 > I also strongly advise you to install [GmodCEFCodecFix](https://github.com/solsticegamestudios/GModCEFCodecFix), it updates Chromium to a fresh version, which can improve performance (at least it raises css/js functionality).
 
 # Documentation
-All the docs related in [.docs](./docs)
+All the docs related in [.docs](./.docs)
 
 # About performance
 See the thing is, comparing VGUI/default gmod functions for rendering with web-technology, the former is likely to win in terms of arbitrariness due to its simplicity, but the web adds a huge number of features. You can make UI of any complexity without problems with the help of web technologies, it's a fact that nobody will argue with.
