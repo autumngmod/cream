@@ -3,7 +3,7 @@
   "name": "cream",
   "description": "Web UI In Garry's Mod",
   "authors": ["smokingplaya"],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "githubRepo": "https://github.com/autumngmod/cream",
   "side": ["client"],
   "dependencies": {
