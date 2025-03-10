@@ -5,10 +5,14 @@
 
 This example was created in Vite+React+TypeScript
 
-# Usage
+# Building
 ```bash
 npm/bun install # install deps (once)
-npm/bun run dev --host # copy second ip
 # or build in release mode
 npm/bun run build
 ```
+
+# Installing
+1. Copy ``dist/index.html`` to ``garrysmod/data/worky/example``
+2. Copy [cream_example.lua](./lua/autorun/client/cream_example.lua) to ``garrysmod/lua/autorun/client/``
+3. Start your gmodds

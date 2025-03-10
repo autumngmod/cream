@@ -1,1 +1,2 @@
 cream:new("example")
+  :load()

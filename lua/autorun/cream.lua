@@ -1,207 +1,293 @@
----@diagnostic disable: inject-field :)
 --
--- cream -- a lua library for Garry's Mod
--- which manages web page based user interfaces,
--- and provides a convenient API for them.
+-- cream is a library that allows you to easily
+--   create Web UI for Garry's Mod without thinking about the details.
 --
--- table of content:
---  cream   # table
---    cream:new(string id, string url): Panel
---    cream:get(string id): Panel | nil
---    cream:remove(string id)
---    cream:isValid(string id): boolean
+-- autumngmod@2025
 --
 
----@class WebView: DHTML
+---@diagnostic disable-next-line: lowercase-global
+cream = {}
+cream.version = "0.1.1"
+-- Table of WebView panels that will be initialized after player spawned first time
+---@type string[] List of WebViews id
+cream.preload = {}
+-- Registred WebViews
+---@type table<string, WebView>
+cream.webviews = {}
 
-cream = cream or {}
-cream.storage = cream.storage or {}
----@type table<string, { callback?: fun(_: WebView), url: string }>
-cream.preload = cream.preload or {}
+-- DHTMLExtended
+---@class DHTMLExtended: DHTML
+---@field storage table<string, fun(...): string | number | boolean | nil>
+---@field webview WebView
+---@field getWebView fun(self: DHTMLExtended): WebView
+---@field addCallback fun(self: DHTMLExtended, name: string, callback: fun(...): string | number | boolean | nil)
 
---- Returns WebView panel
+-- WebView
+---@class WebView
+---@field id string
+---@field url string
+---@field baseDir string | nil Folder, that contains ${id}/index.html.txt file. Relative to garrysmod/data/worky/
+---@field expressions string[] JS Code that will be executed when DHTML created
+---@field methods table<string, fun(...): string | number | boolean | nil>
+---@field panel DHTMLExtended | nil DHTML Panel
+local webview = {}
+webview.__index = webview
+
+--- Creates new WebView object
 ---
 ---@param id string
----@return WebView | nil
-function cream:get(id)
-  return self.storage[id]
-end
+---@param url? string
+---@return WebView
+function cream:new(id, url)
+  local webview = setmetatable({
+    id = id,
+    url = url,
+    expressions = {},
+    methods = {},
+  }, webview)
 
---- Is WebView panel valid?
----
----@param id string
----@return boolean
-function cream:isValid(id)
-  return IsValid(self.storage[id])
-end
-
---- Returns the WebView panel if it exists or throws an error
----
----@param id string
-function cream:getThrowable(id)
-  local panel = self.storage[id]
-
-  if (!IsValid(panel)) then
-    error("Panel is missing")
+  if (not url) then
+    ---@diagnostic disable-next-line: invisible
+    webview.url = webview:generateUrl()
   end
 
-  return panel
+  return webview
 end
 
---- Returns the path to the main folder of your UI in the ``data/worky/`` folder
+--- Adds a function that you can call from JavaScript.
 ---
----@param folder string
----@return string "relative to ``asset://garrysmod/data/worky/``"
-function cream:getUrlInData(folder)
-  return "asset://garrysmod/data/worky/" .. folder
-end
-
---- Automatically launches the file when a player joins to the server
----
----@param id string
----@param callback? fun(panel: WebView)
----@param url? string
-function cream:load(id, callback, url)
-  if (!self.preload) then
-    local panel = self:new(id, url, true)
-
-    if (callback) then
-      panel(callback)
-    end
+---@param name string
+---@param callback fun(...): string | number | boolean | nil
+function webview:define(name, callback)
+  -- If self.panel is valid
+  if (not IsValid(self)) then
+    self.methods[name] = callback
 
     return
   end
 
-  self.preload[id] = {
-    callback = callback,
-    url = url or self:getUrlInData(id) .. "/index.html.txt"
-  }
+  self.panel:addCallback(name, callback)
 end
 
-hook.Add("workyDownloaded", "cream", function(path)
-  path = path .. ".txt"
-
-  if (!cream.preload) then
-    return hook.Remove("workyDownloaded", "cream")
-  end
-
-  for id, info in pairs(cream.preload) do
-    local url = info.url
-
-    if (url:find(path, 1, true)) then
-      local panel = cream:new(id, url)
-      local callback = info.callback
-
-      cream.preload[id] = nil
-
-      if (callback) then
-        callback(panel)
-      end
-    end
-  end
-end)
-
---- Creates new WebView
+--- Executes ``JavaScript`` code in the panel,\
+--- or queues the execution until the panel is created, and then executes that code.
 ---
----@param id string
----@param url? string Override default url
----@param override? boolean
----@return WebView
-function cream:new(id, url, override)
-  local p = self.storage[id]
-
-  --- why tf is there no walrus operator in lua?
-  if (p) then
-    if (!override) then
-      return p
-    end
-
-    p:Remove()
-  end
-
-  ---@type WebView
-  ---@diagnostic disable-next-line: assign-type-mismatch
-  local panel = vgui.Create("DHTML")
-  panel:Dock(FILL) -- auto sizing
-  panel:OpenURL(url or self:getUrlInData(id) .. "/index.html.txt") -- workyround rules (.txt)
-
-  self.storage[id] = panel
-
-  self:setup(id, panel)
-
-  return panel
-end
-
---- Provides API methods to the JavaScript\
---- *internal function, use ``addCallback``
+--- This provides guarantees that your code will be executed.
 ---
----@private
----@param id string
----@param panel WebView
-function cream:setup(id, panel)
-  panel.callbackStorage = {}
-
-  ---@param name string
-  ---@param callback fun(...): number | string | boolean
-  panel.addFunction = function(self, name, callback)
-    cream:addCallback(id, name, callback)
+---@param code string
+---@return self
+function webview:execute(code)
+  -- If self.panel is valid
+  if (not IsValid(self)) then
+    self.expressions[#self.expressions+1] = code
 
     return self
   end
 
-  panel.execute = panel.QueueJavascript
-  panel.setUrl = panel.OpenURL
+  self.panel:QueueJavascript(code)
+
+  return self
+end
+
+--- Updates URL of WebView
+---
+---@param url string
+---@return self
+function webview:setUrl(url)
+  self.url = url
+
+  if (IsValid(self)) then
+    self.panel:OpenURL(url)
+  end
+
+  return self
+end
+
+--- Generates path to the ``index.html.txt`` of current WebView.\
+---
+--- Relative to ``asset://garrysmod/data/``
+---
+---@private
+---@return string ``asset://garrysmod/data/worky/${baseDir}/index.html.txt``
+function webview:generateUrl()
+  return "asset://garrysmod/data/" .. ((self.baseDir or ("worky/" .. self.id .. "/")) .. "index.html.txt")
+end
+
+--- Sets folder that contains ${id}/index.html.txt file. Relative to ``garrysmod/data/worky/``\
+---
+--- ``Must end with a "/"``
+---
+---@param baseDir string
+---@return self
+function webview:setBaseDir(baseDir)
+  self.baseDir = "worky/" .. baseDir
+
+  self.url = self:generateUrl()
+
+  return self
+end
+
+--- Returns DHTML panel (if it already created)
+---
+---@return DHTML | nil
+function webview:getPanel()
+  return self.panel
+end
+
+--- _G.IsValid compatibility
+---
+---@private
+---@return boolean
+function webview:IsValid()
+  return IsValid(self.panel)
+end
+
+--- Alias for ``cream:load(webview)``
+function webview:load()
+  cream:load(self)
+end
+
+-- Panel managment
+
+--- Creates DHTML panel on player's screen\
+--- If ``cream.preload`` (creation queue) exists, it places itself in it\
+--- If not, the panel is created immediately
+---
+---@param webview WebView
+function cream:load(webview)
+  self.webviews[webview.id] = webview
+
+  if (self.preload) then
+    self.preload[#self.preload+1] = webview.id
+
+    return
+  end
+
+  self:create(webview.id)
+end
+
+--- ``INTERNAL`` Creates DHTML on player's screen\
+--- ``You don't have to use it!``
+---
+---@private
+---@param id string WebView's id
+---@return DHTMLExtended
+function cream:create(id)
+  local webview = self:getThrowable(id)
+
+  -- If DHTML already created
+  if (IsValid(webview)) then
+    local panel = webview:getPanel()
+    -- checked above
+    ---@diagnostic disable-next-line: need-check-nil
+    panel:Remove()
+  end
+
+  ---@type DHTML
+  local dhtml = vgui.Create("DHTML")
+  dhtml:Dock(FILL) -- autosizing
+
+  return self:setupWebView(webview, dhtml)
+end
+
+--- ``INTERNAL`` Provides interface between Lua and JS (API)\
+--- ``You don't have to use it!``
+---
+---@private
+---@param webview WebView
+---@param panel DHTML
+---@return DHTMLExtended
+function cream:setupWebView(webview, panel)
+  ---@cast panel DHTMLExtended
+
+  -- Storage
+  ---@private
+  panel.storage = {}
+
+  ---@private
+  panel.webview = webview
+
+  panel.getWebView = function(self)
+    return self.webview
+  end
+
+  panel.addCallback = function(self, name, callback)
+    self.storage[name] = callback
+  end
 
   panel:AddFunction("lua", "call", function(...)
-    local args = {...}
-    local fn = args[1] // callable function name
-    local callback = panel.callbackStorage[fn]
+    local args = { ... }
+    local func = args[1]
+    local callback = panel.storage[func]
 
-    if (!callback) then
+    if (not callback) then
       -- todo @ throw error to js if not found
       return
     end
 
-    table.remove(args, 1) // removing function name
+    -- removing callback function name
+    table.remove(args, 1)
 
-    return callback(args)
+    callback(args)
   end)
+
+  panel:OpenURL(webview.url)
+
+  for name, callback in pairs(webview.methods) do
+    panel:addCallback(name, callback)
+  end
+
+  for _, code in ipairs(webview.expressions) do
+    panel:QueueJavascript(code)
+  end
+
+  return panel
 end
 
---- Adds a function that can be called from JS
+--- Returns WebView if it exists
 ---
 ---@param id string
----@param name string
----@param callback fun(...): number | string | boolean
-function cream:addCallback(id, name, callback)
-  self:getThrowable(id)
-    .callbackStorage[name] = callback
+---@return WebView | nil
+function cream:get(id)
+  return self.webviews[id]
 end
 
---- Executes JavaScript witin WebView panel
+--- Returns WebView, throws error if it not exists in ``self.webviews``
 ---
 ---@param id string
----@param jsCode string
-function cream:execute(id, jsCode)
-  self:getThrowable(id)
-    :QueueJavascript(jsCode)
+---@return WebView
+function cream:getThrowable(id)
+  local webview = self.webviews[id]
+
+  if (not webview) then
+    -- yes, it is declared in @param that the variable is required,
+    -- but this is just a security measure (id or "")
+
+    error("WebView " .. (id or "") .. " not found!")
+  end
+
+  return webview
 end
 
---- Changes url in WebView
----
----@param id string
----@param url string
-function cream:setUrl(id, url)
-  self:getThrowable(id)
-    :OpenURL(url)
-end
+-- Preload mechanism
+hook.Add("workyDownloaded", "cream", function(path)
+  path = path .. ".txt"
 
---- Destroys WebView
----
----@param id string
-function cream:remove(id)
-  self:getThrowable(id)
-    :Remove()
+  if (not cream.preload or #cream.preload == 0) then
+    cream.preload = nil // if cream.preload == nil, cream.payload = nil will be set lol
 
-  self.storage[id] = nil
-end
+    return hook.Remove("workyDownloaded", "cream")
+  end
+
+  for _, id in ipairs(cream.preload) do
+    local webview = cream:get(id)
+
+    if (not webview or !webview.url:find(path, 1, true)) then
+      continue
+    end
+
+    webview:load()
+
+    table.remove(cream.preload, _) -- ¯\_(ツ)_/¯
+  end
+end)
