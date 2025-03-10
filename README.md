@@ -17,8 +17,7 @@
 Via [libloader](https://github.com/autumngmod/libloader)
 
 ```bash
-lib i autumngmod/cream
-lib enable autumngmod/cream@0.1.0
+lib install autumngmod/cream
 ```
 
 > [!TIP]
