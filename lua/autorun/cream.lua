@@ -5,15 +5,24 @@
 -- autumngmod@2025
 --
 
+if (cream and cream.webviews) then
+  for _, webview in pairs(cream.webviews) do
+    if (IsValid(webview)) then
+      webview:getPanel()
+        :Remove()
+    end
+  end
+end
+
 ---@diagnostic disable-next-line: lowercase-global
-cream = {}
+cream = cream or {}
 cream.version = "0.1.1"
 -- Table of WebView panels that will be initialized after player spawned first time
 ---@type string[] List of WebViews id
-cream.preload = {}
+cream.preload = cream.preload or {}
 -- Registred WebViews
 ---@type table<string, WebView>
-cream.webviews = {}
+cream.webviews = cream.webviews or {}
 
 -- DHTMLExtended
 ---@class DHTMLExtended: DHTML
@@ -77,7 +86,6 @@ end
 ---@param code string
 ---@return self
 function webview:execute(code)
-  -- If self.panel is valid
   if (not IsValid(self)) then
     self.expressions[#self.expressions+1] = code
 
@@ -143,8 +151,26 @@ function webview:IsValid()
 end
 
 --- Alias for ``cream:load(webview)``
+---
+---@return self
 function webview:load()
   cream:load(self)
+
+  return self
+end
+
+--- Sends an event to JavaScript
+---
+---@param name string Name of the event
+---@param payload table Payload
+function webview:event(name, payload)
+  local jsoned = util.TableToJSON(payload)
+
+  -- ¯\_(ツ)_/¯
+  local event = ("new CustomEvent('%s', { detail: %s })"):format(name, jsoned)
+  local code = ("window.dispatchEvent(%s)"):format(event)
+
+  self:execute(code)
 end
 
 -- Panel managment
@@ -155,15 +181,30 @@ end
 ---
 ---@param webview WebView
 function cream:load(webview)
-  self.webviews[webview.id] = webview
+  local id = webview.id
 
-  if (self.preload) then
-    self.preload[#self.preload+1] = webview.id
+  local cached = self.webviews[id]
+  if (IsValid(cached)) then
+    cached:getPanel():Remove()
+  end
+
+  self.webviews[id] = webview
+
+  if (self.preload and not table.HasValue(self.preload, id)) then
+    if (webview.url:sub(1, 8) ~= "asset://") then -- ¯\_(ツ)_/¯
+      timer.Simple(0, function()
+        self:create(id)
+      end)
+
+      return
+    end
+
+    self.preload[#self.preload+1] = id
 
     return
   end
 
-  self:create(webview.id)
+  self:create(id)
 end
 
 --- ``INTERNAL`` Creates DHTML on player's screen\
@@ -187,7 +228,13 @@ function cream:create(id)
   local dhtml = vgui.Create("DHTML")
   dhtml:Dock(FILL) -- autosizing
 
-  return self:setupWebView(webview, dhtml)
+  local panel = self:setupWebView(webview, dhtml)
+
+  webview.panel = panel
+
+  self:update(webview)
+
+  return panel
 end
 
 --- ``INTERNAL`` Provides interface between Lua and JS (API)\
@@ -228,7 +275,7 @@ function cream:setupWebView(webview, panel)
     -- removing callback function name
     table.remove(args, 1)
 
-    callback(args)
+    return callback(args)
   end)
 
   panel:OpenURL(webview.url)
@@ -273,21 +320,32 @@ end
 hook.Add("workyDownloaded", "cream", function(path)
   path = path .. ".txt"
 
-  if (not cream.preload or #cream.preload == 0) then
-    cream.preload = nil // if cream.preload == nil, cream.payload = nil will be set lol
-
+  if (not cream.preload) then
     return hook.Remove("workyDownloaded", "cream")
   end
 
-  for _, id in ipairs(cream.preload) do
+  local found;
+
+  for index, id in ipairs(cream.preload) do
     local webview = cream:get(id)
 
-    if (not webview or !webview.url:find(path, 1, true)) then
+    if (not webview or not webview.url:find(path, 1, true)) then
       continue
     end
 
+    found = {index, webview}
+    break
+  end
+
+  if (found) then
+    local index, webview = found[1], found[2]
+
     webview:load()
 
-    table.remove(cream.preload, _) -- ¯\_(ツ)_/¯
+    table.remove(cream.preload, index)
+  end
+
+  if (#cream.preload == 0) then
+    return hook.Remove("workyDownloaded", "cream")
   end
 end)
