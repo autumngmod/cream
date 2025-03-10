@@ -11,7 +11,7 @@ Now you can use it in code!
 
 # Usage
 Example in ReactJS
-```ts
+```tsx
 import { useState, useEffect } from "react"
 import { call } from "@autumngmod/cream-api"
 
@@ -36,14 +36,8 @@ local panel = cream:new("example")
 panel:addFunction("getUsername", function()
   return LocalPlayer():Nick()
 end)
-```
-or
-```lua
-cream:load("example", function(self)
-  self:addFunction("getUsername", function()
-    return LocalPlayer():Nick()
-  end)
-end)
+
+panel:load()
 ```
 
 It's easy, isn't it?

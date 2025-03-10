@@ -12,7 +12,8 @@ Let's start by creating a client-side lua file that will run your UI.
 
 Create a file ``garrysmod/lua/autorun/client/my_web_ui.lua``, and write the following in it:
 ```lua
-lua:load("my_project")
+cream:new("my_project")
+  :load()
 ```
 Now when you join to the server you will have your web project open.
 
@@ -41,7 +42,7 @@ Write the following commands:
 ```bash
 cd my_project
 
-bun/npm install # dependency installation
+bun/npm install # dependencies installation
 bun/npm run dev --host # starting a vite server
 ```
 
