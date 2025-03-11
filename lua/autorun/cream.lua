@@ -16,7 +16,7 @@ end
 
 ---@diagnostic disable-next-line: lowercase-global
 cream = cream or {}
-cream.version = "0.1.1"
+cream.version = "0.1.3"
 -- Table of WebView panels that will be initialized after player spawned first time
 ---@type string[] List of WebViews id
 cream.preload = cream.preload or {}
@@ -39,6 +39,7 @@ cream.webviews = cream.webviews or {}
 ---@field expressions string[] JS Code that will be executed when DHTML created
 ---@field methods table<string, fun(...): string | number | boolean | nil>
 ---@field panel DHTMLExtended | nil DHTML Panel
+---@field loaded function | nil
 local webview = {}
 webview.__index = webview
 
@@ -109,6 +110,13 @@ function webview:setUrl(url)
   end
 
   return self
+end
+
+--- Function called after panel loading
+---
+---@param callback function
+function webview:onLoaded(callback)
+  self.loaded = callback
 end
 
 --- Generates path to the ``index.html.txt`` of current WebView.\
@@ -232,7 +240,9 @@ function cream:create(id)
 
   webview.panel = panel
 
-  self:update(webview)
+  if (webview.loaded) then
+    webview:loaded()
+  end
 
   return panel
 end
