@@ -16,7 +16,7 @@ end
 
 ---@diagnostic disable-next-line: lowercase-global
 cream = cream or {}
-cream.version = "0.1.3"
+cream.version = "0.1.4"
 -- Table of WebView panels that will be initialized after player spawned first time
 ---@type string[] List of WebViews id
 cream.preload = cream.preload or {}
@@ -357,5 +357,23 @@ hook.Add("workyDownloaded", "cream", function(path)
 
   if (#cream.preload == 0) then
     return hook.Remove("workyDownloaded", "cream")
+  end
+end)
+
+timer.Simple(0, function()
+  if (workyround and workyround.isDownloaded) then
+    for index, v in ipairs(cream.preload) do
+      local webview = cream:get(id)
+
+      if (!webview) then
+        print("Webview \"" .. tostring(id) .. "\" not found")
+
+        continue
+      end
+
+      webview:load()
+
+      table.remove(cream.preload, index)
+    end
   end
 end)
