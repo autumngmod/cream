@@ -7,6 +7,6 @@
   "githubRepo": "https://github.com/autumngmod/cream",
   "side": ["client"],
   "dependencies": {
-    "autumngmod/workyround": "0.1.1"
+    "autumngmod/workyround": "0.1.2"
   }
 }
