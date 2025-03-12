@@ -109,11 +109,11 @@ function webview:setUrl(url)
     self.panel:OpenURL(url)
 
     for name, callback in pairs(webview.methods) do
-      panel:addCallback(name, callback)
+      self.panel:addCallback(name, callback)
     end
 
     for _, code in ipairs(webview.expressions) do
-      panel:QueueJavascript(code)
+      self.panel:QueueJavascript(code)
     end
   end
 
