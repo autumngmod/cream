@@ -107,6 +107,14 @@ function webview:setUrl(url)
 
   if (IsValid(self)) then
     self.panel:OpenURL(url)
+
+    for name, callback in pairs(webview.methods) do
+      panel:addCallback(name, callback)
+    end
+
+    for _, code in ipairs(webview.expressions) do
+      panel:QueueJavascript(code)
+    end
   end
 
   return self
@@ -288,15 +296,7 @@ function cream:setupWebView(webview, panel)
     return callback(args)
   end)
 
-  panel:OpenURL(webview.url)
-
-  for name, callback in pairs(webview.methods) do
-    panel:addCallback(name, callback)
-  end
-
-  for _, code in ipairs(webview.expressions) do
-    panel:QueueJavascript(code)
-  end
+  webview:setUrl(webview.url)
 
   return panel
 end
@@ -327,11 +327,11 @@ function cream:getThrowable(id)
 end
 
 -- Preload mechanism
-hook.Add("workyDownloaded", "cream", function(path)
+hook.Add("WorkyFileReady", "cream", function(path)
   path = path .. ".txt"
 
   if (not cream.preload) then
-    return hook.Remove("workyDownloaded", "cream")
+    return hook.Remove("WorkyFileReady", "cream")
   end
 
   local found;
@@ -356,17 +356,34 @@ hook.Add("workyDownloaded", "cream", function(path)
   end
 
   if (#cream.preload == 0) then
-    return hook.Remove("workyDownloaded", "cream")
+    return hook.Remove("WorkyFileReady", "cream")
   end
 end)
 
-timer.Simple(0, function()
-  if (workyround and workyround.isDownloaded) then
-    for index, v in ipairs(cream.preload) do
-      local webview = cream:get(id)
+hook.Add("WorkyReady", "cream", function()
+  for index, v in ipairs(cream.preload) do
+    local webview = cream:get(v)
 
-      if (!webview) then
-        print("Webview \"" .. tostring(id) .. "\" not found")
+    if (not webview) then
+      print("Webview \"" .. tostring(v) .. "\" not found")
+
+      continue
+    end
+
+    webview:load()
+
+    table.remove(cream.preload, index)
+  end
+end)
+
+-- right after installation
+timer.Simple(0, function()
+  if (worky and worky.isDownloaded) then
+    for index, v in ipairs(cream.preload) do
+      local webview = cream:get(v)
+
+      if (not webview) then
+        print("Webview \"" .. tostring(v) .. "\" not found")
 
         continue
       end
