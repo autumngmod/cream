@@ -18,6 +18,8 @@ lib install autumngmod/cream
 2. Install [gm_maskfs](https://github.com/autumngmod/gm_maskfs)
 
 # Documentation
+> [!NOTE]
+> The documentation may be out of date. Now it is not maintainable, because now in the process of development wiki.smokingplaya.ru, which will be documentation fresh to cream
 
 * [Quick guide](./.docs/quick-guide.md)
 * [ReactJS + Vite example](./example)
