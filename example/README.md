@@ -13,6 +13,6 @@ npm/bun run build
 ```
 
 # Installing
-1. Copy ``dist/index.html`` to ``garrysmod/data/worky/example``
+1. Copy ``dist/index.html`` to ``garrysmod/shared/example``
 2. Copy [cream_example.lua](./lua/autorun/client/cream_example.lua) to ``garrysmod/lua/autorun/client/``
 3. Start your gmodds

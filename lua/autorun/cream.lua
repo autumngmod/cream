@@ -5,6 +5,10 @@
 -- autumngmod@2025
 --
 
+if (SERVER) then
+  return
+end
+
 if (cream and cream.webviews) then
   for _, webview in pairs(cream.webviews) do
     if (IsValid(webview)) then
@@ -16,7 +20,9 @@ end
 
 ---@diagnostic disable-next-line: lowercase-global
 cream = cream or {}
-cream.version = "0.1.4"
+---@type table<string, fun(webview: WebView)>
+cream.std = cream.std or {}
+cream.version = "0.1.6"
 -- Table of WebView panels that will be initialized after player spawned first time
 ---@type string[] List of WebViews id
 cream.preload = cream.preload or {}
@@ -31,13 +37,32 @@ cream.webviews = cream.webviews or {}
 ---@field getWebView fun(self: DHTMLExtended): WebView
 ---@field addCallback fun(self: DHTMLExtended, name: string, callback: fun(...): string | number | boolean | nil)
 
+---@param name string
+---@return boolean
+local function isValidStdName(name)
+	return string.match(name, "^[^.]+%.[^.]+$") ~= nil
+end
+
+--- Registers std in cream, making it possible to connect it to WebView.
+---
+---@param name string Name of std ()
+---@param callback fun(webview: WebView)
+function cream:registerStd(name, callback)
+  if (not isValidStdName(name)) then
+    error("The name of the registered std must be of the form “%s.%s”")
+  end
+
+  self.std[name] = callback
+end
+
 -- WebView
 ---@class WebView
 ---@field id string
 ---@field url string
----@field baseDir string | nil Folder, that contains ${id}/index.html.txt file. Relative to garrysmod/data/worky/
 ---@field expressions string[] JS Code that will be executed when DHTML created
 ---@field methods table<string, fun(...): string | number | boolean | nil>
+---@field stds string[]
+---@field attached table<string, fun(): Panel>
 ---@field panel DHTMLExtended | nil DHTML Panel
 ---@field loaded function | nil
 local webview = {}
@@ -54,6 +79,8 @@ function cream:new(id, url)
     url = url,
     expressions = {},
     methods = {},
+    stds = {},
+    attached = {}
   }, webview)
 
   if (not url) then
@@ -98,6 +125,29 @@ function webview:execute(code)
   return self
 end
 
+---@param name string
+---@return self
+function webview:importStd(name)
+  if (!cream.std[name]) then
+    error("Invalid std " .. name .. "!")
+  end
+
+  self.stds[#self.stds+1] = name
+
+  return self
+end
+
+--- Attaches the returned VGUI panel to the HTML block, taking over its width and position.
+---
+---@param callback fun(): Panel
+---@param blockId string
+---@return self
+function webview:attach(callback, blockId)
+  self.attached[blockId] = callback
+
+  return self
+end
+
 --- Updates URL of WebView
 ---
 ---@param url string
@@ -108,13 +158,25 @@ function webview:setUrl(url)
   if (IsValid(self)) then
     self.panel:OpenURL(url)
 
-    for name, callback in pairs(webview.methods) do
+    for name, callback in pairs(self.methods) do
       self.panel:addCallback(name, callback)
     end
 
-    for _, code in ipairs(webview.expressions) do
+    for _, code in ipairs(self.expressions) do
       self.panel:QueueJavascript(code)
     end
+
+    -- for _, name in ipairs(self.stds) do
+      -- local std = cream.std[name]
+ 
+      -- std(self)
+    -- end
+
+    -- for id, callback in pairs(self.attached) do
+      -- local panel = callback()
+      -- panel:SetParent(self.panel)
+      -- todo
+    -- end
   end
 
   return self
@@ -123,32 +185,21 @@ end
 --- Function called after panel loading
 ---
 ---@param callback function
+---@return self
 function webview:onLoaded(callback)
   self.loaded = callback
-end
-
---- Generates path to the ``index.html.txt`` of current WebView.\
----
---- Relative to ``asset://garrysmod/data/``
----
----@private
----@return string ``asset://garrysmod/data/worky/${baseDir}/index.html.txt``
-function webview:generateUrl()
-  return "asset://garrysmod/data/" .. ((self.baseDir or ("worky/" .. self.id .. "/")) .. "index.html.txt")
-end
-
---- Sets folder that contains ${id}/index.html.txt file. Relative to ``garrysmod/data/worky/``\
----
---- ``Must end with a "/"``
----
----@param baseDir string
----@return self
-function webview:setBaseDir(baseDir)
-  self.baseDir = "worky/" .. baseDir
-
-  self.url = self:generateUrl()
 
   return self
+end
+
+--- Generates path to the ``index.html.dat`` of current WebView.\
+---
+--- Relative to ``asset://garrysmod/resource/shared/``
+---
+---@private
+---@return string ``asset://garrysmod/resource/shared/${id}/index.html.dat``
+function webview:generateUrl()
+  return "asset://garrysmod/resource/shared/" .. self.id .. "/index.html.dat"
 end
 
 --- Returns DHTML panel (if it already created)
@@ -201,7 +252,8 @@ function cream:load(webview)
 
   local cached = self.webviews[id]
   if (IsValid(cached)) then
-    cached:getPanel():Remove()
+    cached:getPanel()
+      :Remove()
   end
 
   self.webviews[id] = webview
@@ -234,19 +286,15 @@ function cream:create(id)
 
   -- If DHTML already created
   if (IsValid(webview)) then
-    local panel = webview:getPanel()
-    -- checked above
-    ---@diagnostic disable-next-line: need-check-nil
-    panel:Remove()
+    webview:getPanel()
+      :Remove()
   end
 
   ---@type DHTML
   local dhtml = vgui.Create("DHTML")
   dhtml:Dock(FILL) -- autosizing
 
-  local panel = self:setupWebView(webview, dhtml)
-
-  webview.panel = panel
+  self:setupWebView(webview, dhtml)
 
   if (webview.loaded) then
     webview:loaded()
@@ -293,8 +341,10 @@ function cream:setupWebView(webview, panel)
     -- removing callback function name
     table.remove(args, 1)
 
-    return callback(args)
+    return callback(unpack(args))
   end)
+
+  webview.panel = panel
 
   webview:setUrl(webview.url)
 
@@ -317,80 +367,22 @@ function cream:getThrowable(id)
   local webview = self.webviews[id]
 
   if (not webview) then
-    -- yes, it is declared in @param that the variable is required,
-    -- but this is just a security measure (id or "")
-
-    error("WebView " .. (id or "") .. " not found!")
+    error("WebView " .. id .. " not found!")
   end
 
   return webview
 end
-
--- Preload mechanism
-hook.Add("WorkyFileReady", "cream", function(path)
-  path = path .. ".txt"
-
-  if (not cream.preload) then
-    return hook.Remove("WorkyFileReady", "cream")
-  end
-
-  local found;
-
-  for index, id in ipairs(cream.preload) do
-    local webview = cream:get(id)
-
-    if (not webview or not webview.url:find(path, 1, true)) then
-      continue
-    end
-
-    found = {index, webview}
-    break
-  end
-
-  if (found) then
-    local index, webview = found[1], found[2]
-
-    webview:load()
-
-    table.remove(cream.preload, index)
-  end
-
-  if (#cream.preload == 0) then
-    return hook.Remove("WorkyFileReady", "cream")
-  end
-end)
-
-hook.Add("WorkyReady", "cream", function()
+timer.Simple(0, function()
   for index, v in ipairs(cream.preload) do
     local webview = cream:get(v)
 
     if (not webview) then
       print("Webview \"" .. tostring(v) .. "\" not found")
-
       continue
     end
 
     webview:load()
 
     table.remove(cream.preload, index)
-  end
-end)
-
--- right after installation
-timer.Simple(0, function()
-  if (worky and worky.isDownloaded) then
-    for index, v in ipairs(cream.preload) do
-      local webview = cream:get(v)
-
-      if (not webview) then
-        print("Webview \"" .. tostring(v) .. "\" not found")
-
-        continue
-      end
-
-      webview:load()
-
-      table.remove(cream.preload, index)
-    end
   end
 end)

@@ -19,9 +19,9 @@ The argument passed to ``cream:new`` is id. It is a unique identifier for your W
 
 The specified id also affects the search for the desired ``HTML`` file.
 
-The id literally shows in which folder (relative to ``garrysmod/data/worky/``) the ``index.html`` is located.
+The id literally shows in which folder (relative to ``garrysmod/shared/``) the ``index.html`` is located.
 
-That is, in this example id refers to ``garrysmod/data/worky/id/index.html.tx``.
+That is, in this example id refers to ``garrysmod/shared/id/index.html.dat``.
 
 ## Functions
 You can bind functions that you can call from the JavaScript side. This is done using the ``:define()`` method.
@@ -42,15 +42,6 @@ let username: string = await call("getUsername");
 console.log(username)
 ```
 
-## Base Directory
-If you don't want to store ``index.html`` at the root of the ``worky`` directory, you can specify your path inside ``worky`` using the ``:setBaseDir()`` method. Example:
-
-```lua
--- will load the ``data/worky/ui/example/index.html`` file
-local webview = cream:new("example")
-webview:setBaseDir("ui/example/") -- must end in “/”
-```
-
 ## Loading
 WebView is a configurator class. This means that you can create it once, and use it many times. It will keep all the functions and URLs in it.
 
@@ -61,7 +52,7 @@ This method will create a WebUI (DHTML panel) after the ``index.html`` file has 
 If you specify a custom URL, the WebUI will be created instantly.
 
 ```lua
--- will wait for the file (data/worky/example/index.html) to download
+-- will wait for the file (resource/shared/example/index.html) to download
 local webview = cream:new("example")
 -- will be created instantly
 local webview = cream:new("google", "https://google.com")
